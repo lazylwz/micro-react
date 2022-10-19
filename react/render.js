@@ -9,9 +9,24 @@ const createDom = (fiber) => {
   return dom;
 };
 
+const commitRoot = () => {
+  commitWork(wipRoot.child);
+  console.log("commitRoot：[wipRoot]:", wipRoot);
+  wipRoot = null;
+};
+
+const commitWork = (fiber) => {
+  console.log("commitWork[fiber]:", fiber);
+  if (!fiber) return;
+  const domParent = fiber.parent.dom;
+  domParent.appendChild(fiber.dom);
+  if (fiber.child) commitWork(fiber.child);
+  if (fiber.sibling) commitWork(fiber.sibling);
+};
+
 // 初始化第一个工作单元 rootFiber
 const render = (element, container) => {
-  nextUnitOfWork = {
+  wipRoot = {
     dom: container,
     props: {
       children: [element],
@@ -20,10 +35,12 @@ const render = (element, container) => {
     child: null,
     parent: null,
   };
+  nextUnitOfWork = wipRoot;
+  console.log("render:[wipRoot] ", wipRoot);
 };
 
 let nextUnitOfWork = null;
-
+let wipRoot = null; // root copy
 // 调度函数
 const workLoop = (deadline) => {
   // 不应该交出控制权或不应该停止
@@ -33,6 +50,10 @@ const workLoop = (deadline) => {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
     // 检测浏览器是否还有空余时间
     shouldYield = deadline.timeRemaining() < 1;
+    console.log("workLoop: [nextUnitOfWork]", nextUnitOfWork, deadline.timeRemaining());
+  }
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
   }
   // 没有空余时间，将工作放到浏览器下一次空闲时执行
   requestIdleCallback(workLoop);
@@ -45,10 +66,6 @@ const performUnitOfWork = (fiber) => {
   // 创建 DOM 元素
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
-  }
-  // 追加到父节点
-  if (fiber.parent) {
-    fiber.parent.dom.append(fiber.dom);
   }
   // 给children添加fiber
   const elements = fiber.props.children;
