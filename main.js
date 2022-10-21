@@ -1,26 +1,17 @@
-import { createElement, render } from "./react";
+import { createElement, render, useState } from "./react";
 
-const handleInput = (e) => {
-  renderer(e.target.value);
+const funcComponent = () => {
+  const [state, setState] = useState(0);
+  return createElement(
+    "h1",
+    { onclick: () => setState((state) => state + 1) },
+    state
+  );
 };
-
-const funcComponent = (props) => {
-    return createElement("h1", { style: "background: green" }, props.title)
-}
 
 const renderer = (value) => {
   const container = document.querySelector("#root");
-  const element = createElement(
-    "div",
-    null,
-    createElement(
-      "input",
-      { id: "input", oninput: (e) => handleInput(e) },
-      null
-    ),
-    createElement("h1", { style: "background: red" }, value),
-    createElement(funcComponent,{title: 'hah'})
-  );
+  const element = createElement(funcComponent);
   render(element, container);
 };
 renderer();

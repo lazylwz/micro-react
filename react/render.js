@@ -99,7 +99,8 @@ let nextUnitOfWork = null;
 let wipRoot = null;
 let currentRoot = null;
 let deletions = null;
-
+let wipFiber = null;
+let hookIndex = null;
 // 调度函数
 const workLoop = (deadline) => {
   // 不应该交出控制权或不应该停止
@@ -148,9 +149,38 @@ const updateHostComponent = (fiber) => {
 };
 
 const updateFunctionComponent = (fiber) => {
+  wipFiber = fiber;
+  hookIndex = 0;
+  wipFiber.hooks = [];
   const children = [fiber.type(fiber.props)];
-  console.log(children);
   reconcileChildren(fiber, children);
+};
+
+export const useState = (init) => {
+  const oldHook =
+    wipFiber.alternate &&
+    wipFiber.alternate.hooks &&
+    wipFiber.alternate.hooks[hookIndex];
+  const hook = {
+    state: oldHook ? oldHook.state : init,
+    queue: [],
+  };
+  const actions = oldHook ? oldHook.queue : [];
+  actions.forEach((action) => (hook.state = action(hook.state)));
+  const setState = (action) => {
+    hook.queue.push(action);
+    wipRoot = {
+      dom: currentRoot.dom,
+      props: currentRoot.props,
+      alternate: currentRoot,
+    };
+    nextUnitOfWork = wipRoot;
+    deletions = [];
+  };
+
+  wipFiber.hooks.push(hook);
+  hookIndex++;
+  return [hook.state, setState];
 };
 
 const reconcileChildren = (wipFiber, elements) => {
