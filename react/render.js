@@ -53,18 +53,30 @@ const commitRoot = () => {
 };
 
 const commitWork = (fiber) => {
-  console.log(fiber)
   if (!fiber) return;
-  const domParent = fiber.parent.dom;
+  let domParentFiber = fiber.parent;
+  while (!domParentFiber.dom) {
+    domParentFiber = domParentFiber.parent;
+  }
+  const domParent = domParentFiber.dom;
   if (fiber.effectFlag === "PLACEMENT" && fiber.dom !== null) {
     domParent.appendChild(fiber.dom);
   } else if (fiber.effectFlag === "DElETION") {
-    domParent.removeChild(fiber.dom);
+    commitDeletion(fiber, domParent);
   } else if (fiber.effectFlag === "UPDATE" && fiber.dom !== null) {
     updateDom(fiber.dom, fiber.alternate.props, fiber.props);
   }
   if (fiber.child) commitWork(fiber.child);
   if (fiber.sibling) commitWork(fiber.sibling);
+};
+
+// 函数组件(没有自己的DOM)特殊处理：向下寻找最近的 child 节点dom进行删除
+const commitDeletion = (fiber, domParent) => {
+  if (fiber.dom) {
+    domParent.removeChild(fiber.dom);
+  } else {
+    commitDeletion(fiber.child, domParent);
+  }
 };
 
 // 初始化第一个工作单元 rootFiber
@@ -84,7 +96,7 @@ const render = (element, container) => {
 };
 
 let nextUnitOfWork = null;
-let wipRoot = null; 
+let wipRoot = null;
 let currentRoot = null;
 let deletions = null;
 
@@ -109,14 +121,10 @@ const workLoop = (deadline) => {
 requestIdleCallback(workLoop);
 
 const performUnitOfWork = (fiber) => {
-  // 创建 DOM 元素
-  if (!fiber.dom) {
-    fiber.dom = createDom(fiber);
-  }
-  // 给children添加fiber
-  const elements = fiber.props.children;
-  // 新建newFiber
-  reconcileChildren(fiber, elements);
+  const isFunctionComponent = fiber.type instanceof Function;
+  isFunctionComponent
+    ? updateFunctionComponent(fiber)
+    : updateHostComponent(fiber);
   // 返回下一个fiber
   if (fiber.child) {
     return fiber.child;
@@ -128,6 +136,21 @@ const performUnitOfWork = (fiber) => {
     }
     nextFiber = nextFiber.parent;
   }
+};
+
+const updateHostComponent = (fiber) => {
+  // 创建 DOM 元素
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber);
+  }
+  // 新建newFiber
+  reconcileChildren(fiber, fiber.props.children);
+};
+
+const updateFunctionComponent = (fiber) => {
+  const children = [fiber.type(fiber.props)];
+  console.log(children);
+  reconcileChildren(fiber, children);
 };
 
 const reconcileChildren = (wipFiber, elements) => {
