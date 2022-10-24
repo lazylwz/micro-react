@@ -10,32 +10,34 @@ const createDom = (fiber) => {
 };
 
 const isEvent = (key) => key.startsWith("on");
-const isProperty = (key) => key !== "children" && !isEvent(key);
+const isStyle = (key) => key === "style";
+const isProperty = (key) =>
+  key !== "children" && !isEvent(key) && !isStyle(key);
 const isNew = (prev, next) => (key) => prev[key] !== next[key];
-const isGone = (prev, next) => (key) => !(key in next);
+const isGone = (next) => (key) => !(key in next);
 
 const updateDom = (dom, prevProps, nextProps) => {
+  const prevStyle = prevProps.style || {};
+  const nextStyle = nextProps.style || {};
   // 删除已经不存在的 props
   Object.keys(prevProps)
     .filter(isProperty)
-    .filter(isGone(prevProps, nextProps))
+    .filter(isGone(nextProps))
     .forEach((name) => (dom[name] = ""));
   // 添加新的或者改变的 props
   Object.keys(nextProps)
     .filter(isProperty)
     .filter(isNew(prevProps, nextProps))
     .forEach((name) => (dom[name] = nextProps[name]));
-
   // 删除没有的或者改变的 events
   Object.keys(prevProps)
     .filter(isEvent)
-    .filter((key) => !(key in nextProps) || isNew(prevProps, nextProps))
+    .filter(isGone(nextProps) || isNew(prevProps, nextProps))
     .forEach((name) => {
       const eventType = name.toLowerCase().substring(2);
       dom.removeEventListener(eventType, prevProps[name]);
     });
-
-  // 添加新的和改变的 events
+  // 添加新的 events
   Object.keys(nextProps)
     .filter(isEvent)
     .filter(isNew(prevProps, nextProps))
@@ -43,6 +45,12 @@ const updateDom = (dom, prevProps, nextProps) => {
       const eventType = name.toLowerCase().substring(2);
       dom.addEventListener(eventType, nextProps[name]);
     });
+  // 删除已经不存在的 style
+  Object.keys(prevStyle)
+    .filter(isGone(nextStyle))
+    .forEach((name) => (dom.style[name] = ""));
+  // 添加新的 style
+  Object.keys(nextStyle).forEach((name) => (dom.style[name] = nextStyle[name]));
 };
 
 const commitRoot = () => {
