@@ -6,6 +6,9 @@ const createDom = (fiber) => {
   Object.keys(fiber.props)
     .filter((key) => key !== "children")
     .forEach((name) => (dom[name] = fiber.props[name]));
+  //设置默认样式属性
+  const defaultStyle = fiber.props.style || {};
+  Object.keys(defaultStyle).forEach((name) => (dom.style[name] = defaultStyle[name]));
   return dom;
 };
 
